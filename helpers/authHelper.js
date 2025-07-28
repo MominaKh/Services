@@ -1,7 +1,7 @@
-const bcrypt = require('bcrypt')
-const jwt = require('jsonwebtoken');
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
 
-exports.hashPassword = async (password) => {
+export const hashPassword = async (password) => {
     try {
         const saltRounds = 10;
         const hashed = await bcrypt.hash(password, saltRounds);
@@ -12,20 +12,18 @@ exports.hashPassword = async (password) => {
     }
 };
 
-
-exports.comparePassword = async (password, hashPassword) => {
+export const comparePassword = async (password, hashPassword) => {
     try {
-        return await bcrypt.compare(password, hashPassword)
+        return await bcrypt.compare(password, hashPassword);
     } catch (error) {
-        console.log("Error in comapring password: ", error);
+        console.log("Error in comparing password:", error);
     }
-}
+};
 
-
-exports.generateToken = (user) => {
+export const generateToken = (user) => {
     return jwt.sign(
-        { id: user._id, email: user.email }, 
-        process.env.JWT_SECRET, 
+        { id: user._id, email: user.email },
+        process.env.JWT_SECRET,
         { expiresIn: '7d' }
     );
 };
