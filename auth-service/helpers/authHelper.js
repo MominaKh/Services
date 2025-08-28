@@ -22,7 +22,7 @@ export const comparePassword = async (password, hashPassword) => {
 
 export const generateToken = (user) => {
     return jwt.sign(
-        { id: user._id, email: user.email, username: user.username },
+        { _id: user._id, email: user.email, username: user.username },
         process.env.JWT_SECRET,
         { expiresIn: '7d' }
     );

@@ -5,22 +5,22 @@ import http from "http";
 // import dotenv from "dotenv";
 import commentRoute from "./routes/commentRoutes.js";
 import connectDB from "./config/db.js";
-import { setupSocket } from "./socket.js";
+// import { setupSocket } from "./socket.js";
 // import dotenv from "dotenv";
 // dotenv.config({ path: '../shared-config/.env' });
 
 // dotenv.config();
 
 const app = express();
-const server = http.createServer(app);
-const io = setupSocket(server);
+// const server = http.createServer(app);
+// const io = setupSocket(server);
 
 app.use(express.json());
 app.use(cors());
-app.use((req, res, next) => {
-  req.io = io;
-  next();
-});
+// app.use((req, res, next) => {
+//   req.io = io;
+//   next();
+// });
 
 connectDB();
 
@@ -33,6 +33,6 @@ app.get("/", (req, res) => {
 
 // ✅ Start Express server
 const port = process.env.COMMENT_PORT || 3001;
-server.listen(port, () => {
+app.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);
 });

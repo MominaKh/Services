@@ -1,16 +1,49 @@
 import commentModel from "../models/commentModel.js";
+import { io } from "socket.io-client";
+
 // import Profile from "../models/profileModel.js";
+import { createRedisClients } from "../../shared-config/redisClient.js"
+
+const { pub } = await createRedisClients()
+
+const socket = io("http://localhost:4000");
 
 export const addComment = async (req, res) => {
   try {
-    const { postId, parentId, userId, text } = req.body;
+    const { postId, parentId, userId, text , receiverName, receiverId, entityId} = req.body;
 
     if (parentId) {
       await commentModel.findByIdAndUpdate(parentId, { $inc: { replyCount: 1 } });
     }
     const comment = await commentModel.create(req.body);
+    console.log("RecieverName: ", receiverName);
     console.log("Comment: ", comment);
-    req.io.to(postId).emit("comment:new", comment);
+    // req.io.to(postId).emit("comment:new", comment);
+
+    const notificationPayload = {
+        receiverId: receiverId, 
+        receiverName: receiverName,
+        senderId: comment.user._id,
+        senderName: comment.user.username,
+        type: "comment",
+        message: `${comment.user.username} ${comment.parentId ? "replied" : "commented"} on your ${comment.parentId ? "comment" : "post"}`,
+        entityId: entityId,
+        entityType: comment.parentId ? "comment" : "post"
+      }
+
+      console.log("notifaction payload", notificationPayload);
+
+    // await pub.publish("forward:event", JSON.stringify({
+    //   type: "comment:new",
+    //   data: comment,
+      
+    // }));
+    socket.emit("forward:event", { type: "comment:new", data: comment })
+
+    await pub.publish("notification:event", JSON.stringify({
+      notificationPayload 
+      
+    }));
     res.send(comment);
   } catch (error) {
     res.send(error);
@@ -74,7 +107,11 @@ export const likeComment = async (req, res) => {
         { new: true }
     )}
 
-    req.io.to(newLikeList.postId).emit("comment:like", newLikeList)
+    // req.io.to(newLikeList.postId).emit("comment:like", newLikeList)
+    await pub.publish("forward:event", JSON.stringify({
+      type: "comment:like",
+      data: newLikeList
+    }));
     res.send(newLikeList)
 
   } catch (error) {
@@ -90,7 +127,11 @@ export const updateComment = async (req, res) => {
        {text: text},
        {new: true}
       )
-    req.io.to(updatedComment.postId).emit("comment:update", updatedComment)
+    // req.io.to(updatedComment.postId).emit("comment:update", updatedComment)
+    await pub.publish("forward:event", JSON.stringify({
+      type: "comment:update",
+      data: updatedComment
+    }));
     res.send(updatedComment)
 
   } catch (error) {
@@ -113,7 +154,11 @@ export const deleteComment = async (req, res) => {
       )
     }
     console.log("comment in delete", comment);
-    req.io.to(comment.postId).emit("comment:delete", comment)
+    // req.io.to(comment.postId).emit("comment:delete", comment)
+    await pub.publish("forward:event", JSON.stringify({
+      type: "comment:delete",
+      data: comment
+    }));
     res.send({success: true})
   } catch (error) {
     console.log("Error in deleting comment", error);
