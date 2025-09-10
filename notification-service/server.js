@@ -5,6 +5,7 @@ import http from "http";
 import "./subscriber.js"; 
 // import dotenv from "dotenv";
 import notificationRoutes from "./routes/notificationRoutes.js";
+import preferenceRoutes from "./routes/preferenceRoutes.js";
 import connectDB from "./config/db.js";
 // import { setupSocket } from "./socket.js";
 // import dotenv from "dotenv";
@@ -29,6 +30,7 @@ connectDB();
 // app.use("/comment", commentRoute);
 
 app.use("/notifications", notificationRoutes)
+app.use("/preferences", preferenceRoutes)
 
 app.get("/", (req, res) => {
   res.send("Server running successfully");

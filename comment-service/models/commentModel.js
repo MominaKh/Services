@@ -11,6 +11,7 @@ const commentSchema = new mongoose.Schema({
   text: { type: String, required: true },
   replyCount: { type: Number, default: 0 },
   likes: [{ type: String, default: [] }],
+  dislikes: [{ type: String, default: [] }],
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 });

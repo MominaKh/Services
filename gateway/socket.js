@@ -6,17 +6,6 @@ export const setupSocket = async (server) => {
 
   // Redis setup
   const { sub } = await createRedisClients();
-
-  // Subscribe once
-  // sub.subscribe("forward:event", (message) => {
-  //   const event = JSON.parse(message);
-  //   console.log("📢 Broadcasting to clients:", event);
-
-  //   if (event.data?.postId) {
-  //     io.to(`post:${event.data.postId}`).emit(event.type, event.data);
-  //   }
-  // });
-
   
   // Socket.IO handlers
   io.on("connection", (socket) => {
@@ -41,8 +30,16 @@ export const setupSocket = async (server) => {
     socket.on("forward:event", ({type, data}) => {
     console.log("📢 Broadcasting to clients:", type, data);
 
-    if (data?.postId) {
+    const eventName = type.split(":")[0];
+
+    if (eventName == "comment") {
+      // console.log("📢 Broadcasting to comment:", type, data);
       io.to(`post:${data.postId}`).emit(type, data);
+    }
+
+    if(eventName == "notification") {
+      // console.log("📢 Broadcasting to notification:", type, data);
+      io.to(`user:${data.receiverId}`).emit(type, data);
     }
   })
   });

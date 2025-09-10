@@ -7,9 +7,9 @@ export const getNotifications = async (req, res) => {
   try {
     // { recieverId: req.params.userId }
     console.log('notification backend')
-    const notifications = await notificationModel.find({ })
+    const notifications = await notificationModel.find({ receiverId: req.params.userId })
       .sort({ createdAt: -1 });
-    const unReadCount  = await notificationModel.countDocuments({status: "unread"})
+    const unReadCount  = await notificationModel.countDocuments({receiverId: req.params.userId, status: "unread"})
     res.send({notifications, unReadCount});
 
     
@@ -23,9 +23,21 @@ export const getNotifications = async (req, res) => {
 // @access Private
 export const markNotificationAsRead = async (req, res) => {
   try {
-    await Notification.findByIdAndUpdate(req.params.id, { status: "read" });
+    const not = await notificationModel.updateMany(
+      { receiverId: req.params.userId, status: "unread" },
+      { $set: { status: "read" } }, {new: true});
     res.json({ message: "Marked as read" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
+
+export const  deleteNotification = async (req, res) => {
+  try {
+    await notificationModel.findByIdAndDelete(req.params.notificationId)
+    return res.send("Notification deleted successfully.")
+  } catch (error) {
+    
+  }
+}
+

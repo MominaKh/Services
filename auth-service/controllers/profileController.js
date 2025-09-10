@@ -1,6 +1,8 @@
 import Profile from '../models/profileModel.js';
 import cloudinary from '../helpers/cloudinary.js';
 import streamifier from 'streamifier';
+import { userModel } from '../models/userModel.js';
+import { generateToken } from '../helpers/authHelper.js';
 
 export const getProfile = async (req, res) => {
   try {
@@ -11,6 +13,49 @@ export const getProfile = async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 };
+
+export const setupProfile = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { name, username } = req.body;
+    console.log('enter in setup profile', name, username)
+
+    if (!name || !username) {
+      return res.json({ message: "Name and username are required" });
+    }
+
+    // Check if profile already exists (avoid duplicate setup)
+    const existingProfile = await Profile.findOne({ user: userId });
+    if (existingProfile) {
+      return res.json({ message: "Profile already exists" });
+    }
+
+    // Check username uniqueness
+    const existingUsername = await Profile.findOne({ username });
+    if (existingUsername) {
+      return res.json({ message: "Username already taken" });
+    }
+
+    const profile = new Profile({
+      user: userId,
+      name,
+      username,
+    });
+
+    await profile.save();
+
+    const user = await userModel.findByIdAndUpdate(userId, 
+      {onboardingStep: 3},
+      {new: true}
+    );
+    const token = generateToken(user);
+    return res.status(201).json({ message: "Profile created successfully", profile, token });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 
 export const updateProfile = async (req, res) => {
   try {

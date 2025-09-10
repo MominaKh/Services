@@ -3,7 +3,6 @@ import mongoose from 'mongoose';
 const { Schema, model } = mongoose;
 
 const userSchema = new Schema({
-  username: { type: String, unique: true , default: null},
   email: { type: String, required: true, unique: true },
   password: { type: String, default: null },
   googleId: { type: String, default: null },
@@ -11,7 +10,9 @@ const userSchema = new Schema({
     type: String,
     enum: ['user', 'admin'],
     default: 'user'
-  }
+  },
+  isVerified: { type: Boolean, default: false }, // OTP verified?
+  onboardingStep: { type: Number, default: 1 }, // 1=register, 2=profile, 3=tags, 4=done
 
 }, { timestamps: true });
 

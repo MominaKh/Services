@@ -39,17 +39,17 @@ passport.use(
           }
 
           user = await userModel.create({
-            username: profile.displayName,
             email,
-            googleId: profile.id
+            googleId: profile.id,
+            onboardingStep: 2
           });
 
-          await profileModel.create({
-            user: user._id,
-            name: user.username,
-            bio: '',
-            socials: {},
-          });
+          // await profileModel.create({
+          //   user: user._id,
+          //   name: user.username,
+          //   bio: '',
+          //   socials: {},
+          // });
 
           return done(null, user);
         }

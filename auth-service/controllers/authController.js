@@ -8,6 +8,7 @@ import profileModel from "../models/profileModel.js";
 export const GoogleLogin = async (req, res) => {
     try {
         if (!req.user) return res.status(400).send("User authentication failed.");
+        console.log('req.user', req.user)
         const token = generateToken(req.user);
         res.redirect(`${process.env.FRONTEND_URL}/google-auth?token=${token}`);
     } catch (error) {
@@ -91,14 +92,11 @@ export const resetPassword = async (req, res) => {
 
 export const Register = async (req, res) => {
     try {
-        const { username, email, password } = req.body;
-        if (!username || !email || !password) return res.status(400).json({ msg: "All fields are required!" });
+        const { email, password } = req.body;
+        if (!email || !password) return res.status(400).json({ msg: "All fields are required!" });
 
         const existingEmail = await userModel.findOne({ email });
         if (existingEmail) return res.status(409).json({ message: "User already exists." });
-
-        const existingUsername = await userModel.findOne({ username });
-        if (existingEmail) return res.status(409).json({ message: "Username already taken." });
 
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
         const expiresAt = new Date(Date.now() + 60 * 1000);
@@ -133,8 +131,8 @@ export const resendOTP = async (req, res) => {
 
 export const verifyOTPAndRegister = async (req, res) => {
     try {
-        const { username, email, password, otp } = req.body;
-        if (!username || !email || !password || !otp) {
+        const {  email, password, otp } = req.body;
+        if (!email || !password || !otp) {
             return res.status(400).json({ msg: "All fields and OTP are required!" });
         }
 
@@ -144,14 +142,14 @@ export const verifyOTPAndRegister = async (req, res) => {
         if (validOTP.expiresAt < new Date()) return res.status(400).json({ msg: "OTP expired" });
 
         const hashedPassword = await hashPassword(password);
-        const user = await userModel.create({ username, email, password: hashedPassword });
+        const user = await userModel.create({email, password: hashedPassword, onboardingStep: 2});
 
-        await profileModel.create({
-            user: user._id,
-            name: user.username,
-            bio: '',
-            socials: {},
-        });
+        // await profileModel.create({
+        //     user: user._id,
+        //     name: user.username,
+        //     bio: '',
+        //     socials: {},
+        // });
 
         await OTP.deleteOne({ email });
         const token = generateToken(user);
