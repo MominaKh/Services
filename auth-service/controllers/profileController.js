@@ -3,6 +3,9 @@ import cloudinary from '../helpers/cloudinary.js';
 import streamifier from 'streamifier';
 import { userModel } from '../models/userModel.js';
 import { generateToken } from '../helpers/authHelper.js';
+import { createRedisClients } from "../../shared-config/redisClient.js"
+
+const { pub } = await createRedisClients()
 
 export const getProfile = async (req, res) => {
   try {
@@ -42,13 +45,37 @@ export const setupProfile = async (req, res) => {
       username,
     });
 
+
     await profile.save();
 
-    const user = await userModel.findByIdAndUpdate(userId, 
-      {onboardingStep: 3},
-      {new: true}
+
+
+    const user = await userModel.findByIdAndUpdate(userId,
+      { onboardingStep: 4 },
+      { new: true }
     );
     const token = generateToken(user);
+    const payload = {
+      _id: user._id,
+      name: profile.name,
+      username: profile.username,
+      email: user.email,
+      profileImage: profile.profileImage
+    }
+
+    await pub.publish("user:created", JSON.stringify({
+       payload
+    }))
+
+    const notificationPayload = {
+      receiverId: user._id,
+      entityType: "security",
+      message: "You have successfully created account in bytehive."
+    }
+    await pub.publish("notification:event", JSON.stringify({
+       notificationPayload
+    }))
+
     return res.status(201).json({ message: "Profile created successfully", profile, token });
   } catch (error) {
     console.error(error);

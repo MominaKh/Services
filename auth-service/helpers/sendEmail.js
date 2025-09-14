@@ -2,6 +2,7 @@ import nodemailer from 'nodemailer';
 import oauth2Client from './googleConfig.js';
 
 const sendEmail = async (email, subject, html) => {
+    console.log('entered in sendEmail' )
     const accessToken = await oauth2Client.getAccessToken();
 
     const transporter = nodemailer.createTransport({
@@ -17,7 +18,7 @@ const sendEmail = async (email, subject, html) => {
     });
 
     await transporter.sendMail({
-        from: process.env.EMAIL_SENDER,
+        from: `"ByteHive" <${process.env.EMAIL_SENDER}>`,
         to: email,
         subject,
         html

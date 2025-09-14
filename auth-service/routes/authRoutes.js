@@ -16,6 +16,7 @@ const router = express.Router();
 // Google OAuth Login
 router.get('/google', (req, res, next) => {
   const mode = req.query.mode;
+  console.log("entered in ", mode );
   if (!mode || (mode !== "login" && mode !== "register")) {
     return res.status(400).send("Invalid mode. Use mode=login or mode=register.");
   }

@@ -3,11 +3,7 @@ import mongoose from 'mongoose';
 const commentSchema = new mongoose.Schema({
   postId: { type: Number, required: true },
   parentId: { type: mongoose.Schema.Types.ObjectId, default: null, ref: 'Comment' },
-  user: {
-    _id: { type: mongoose.Schema.Types.ObjectId, required: true },
-    username: { type: String, required: true },
-    profileImage: { type: String, required: true }
-  },
+  userId: { type: String, required: true },
   text: { type: String, required: true },
   replyCount: { type: Number, default: 0 },
   likes: [{ type: String, default: [] }],

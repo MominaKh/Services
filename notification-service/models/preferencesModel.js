@@ -14,15 +14,15 @@ const perTypeSchema = new mongoose.Schema({
 
   // 🔒 system updates (locked)
   system: {
-    inApp: { type: Boolean, default: true, immutable: true },
+    inApp: { type: Boolean, default: false, immutable: true },
     push:  { type: Boolean, default: false, immutable: true },
     email: { type: Boolean, default: true, immutable: true }
   },
 
   // 🔒 security alerts (locked)
   security: {
-    inApp: { type: Boolean, default: true, immutable: true },
-    push:  { type: Boolean, default: true, immutable: true },
+    inApp: { type: Boolean, default: false, immutable: true },
+    push:  { type: Boolean, default: false, immutable: true },
     email: { type: Boolean, default: true, immutable: true }
   }
 }, { _id: false });

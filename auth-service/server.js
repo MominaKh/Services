@@ -11,6 +11,7 @@ import tagRoute from "./routes/tagRoutes.js";
 import userTagRoute from "./routes/userTagRoutes.js";
 import profileRoute from "./routes/profileRoutes.js";
 import connectDB from "./config/db.js";
+// import "./controllers/haha.js"
 
 // dotenv.config();
 

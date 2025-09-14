@@ -4,6 +4,9 @@ import { userModel } from "../models/userModel.js";
 import jwt from "jsonwebtoken";
 import OTP from "../models/otpModel.js";
 import profileModel from "../models/profileModel.js";
+import { createRedisClients } from "../../shared-config/redisClient.js"
+
+const { pub } = await createRedisClients()
 
 export const GoogleLogin = async (req, res) => {
     try {
@@ -28,6 +31,18 @@ export const Login = async (req, res) => {
         if (!isMatch) return res.status(401).json({ message: "Invalid Password!" });
 
         const token = generateToken(user);
+
+        await pub.publish(
+            "notification:event",
+            JSON.stringify({
+                notificationPayload: {
+                    receiverEmail: email,
+                    entityType: "system",
+                    triggerType: "login",
+                    message: `Some login in bytehive`
+                }
+            })
+        );
         res.json({ success: true, message: "Login successful!", token });
     } catch (err) {
         console.error("Login Error:", err);
@@ -46,7 +61,18 @@ export const forgotPassword = async (req, res) => {
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
         await OTP.findOneAndUpdate({ email }, { otp, createdAt: new Date() }, { upsert: true });
 
-        await sendEmail(email, "Password Reset OTP", `<p>Your OTP is: <b>${otp}</b>. Valid for 60 seconds.</p>`);
+        await pub.publish(
+            "notification:event",
+            JSON.stringify({
+                notificationPayload: {
+                    receiverEmail: email,
+                    entityType: "system",
+                    triggerType: "password-reset",
+                    message: `<p>Your OTP is: <b>${otp}</b>. Valid for 5 minutes.</p>`
+                }
+            })
+        );
+        // await sendEmail(email, "Password Reset OTP", `<p>Your OTP is: <b>${otp}</b>. Valid for 60 seconds.</p>`);
         res.json({ success: true, message: "OTP sent to your email." });
     } catch (err) {
         console.error("Forgot Password Error:", err);
@@ -102,7 +128,19 @@ export const Register = async (req, res) => {
         const expiresAt = new Date(Date.now() + 60 * 1000);
 
         await OTP.findOneAndUpdate({ email }, { otp, expiresAt }, { upsert: true, new: true });
-        await sendEmail(email, "Your OTP Code", `<p>Your OTP is: <b>${otp}</b>. It will expire in 60 seconds.</p>`);
+        // await sendEmail(email, "Your OTP Code", `<p>Your OTP is: <b>${otp}</b>. It will expire in 60 seconds.</p>`);
+
+        await pub.publish(
+            "notification:event",
+            JSON.stringify({
+                notificationPayload: {
+                    receiverEmail: email,
+                    entityType: "system",
+                    triggerType: "register",
+                    message: `<p>Your OTP is: <b>${otp}</b>. It will expire in 60 seconds.</p>`
+                }
+            })
+        );
 
         res.json({ success: true, message: "OTP sent to your email. Please verify." });
     } catch (error) {
@@ -120,7 +158,18 @@ export const resendOTP = async (req, res) => {
         const expiresAt = new Date(Date.now() + 60 * 1000);
 
         await OTP.findOneAndUpdate({ email }, { otp, expiresAt }, { upsert: true, new: true });
-        await sendEmail(email, "Your OTP Code", `<p>Your new OTP is: <b>${otp}</b>. It will expire in 60 seconds.</p>`);
+        await pub.publish(
+            "notification:event",
+            JSON.stringify({
+                notificationPayload: {
+                    receiverEmail: email,
+                    entityType: "system",
+                    triggerType: "password-reset",
+                    message: `<p>Your new OTP is: <b>${otp}</b>. It will expire in 60 seconds.</p>`
+                }
+            })
+        );
+        // await sendEmail(email, "Your OTP Code", `<p>Your new OTP is: <b>${otp}</b>. It will expire in 60 seconds.</p>`);
 
         res.json({ success: true, msg: "OTP resent successfully" });
     } catch (error) {
@@ -131,7 +180,7 @@ export const resendOTP = async (req, res) => {
 
 export const verifyOTPAndRegister = async (req, res) => {
     try {
-        const {  email, password, otp } = req.body;
+        const { email, password, otp } = req.body;
         if (!email || !password || !otp) {
             return res.status(400).json({ msg: "All fields and OTP are required!" });
         }
@@ -142,7 +191,7 @@ export const verifyOTPAndRegister = async (req, res) => {
         if (validOTP.expiresAt < new Date()) return res.status(400).json({ msg: "OTP expired" });
 
         const hashedPassword = await hashPassword(password);
-        const user = await userModel.create({email, password: hashedPassword, onboardingStep: 2});
+        const user = await userModel.create({ email, password: hashedPassword, onboardingStep: 2 });
 
         // await profileModel.create({
         //     user: user._id,

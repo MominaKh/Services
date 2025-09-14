@@ -5,6 +5,7 @@ import http from "http";
 // import dotenv from "dotenv";
 import commentRoute from "./routes/commentRoutes.js";
 import connectDB from "./config/db.js";
+import "./subscriber.js"; 
 // import { setupSocket } from "./socket.js";
 // import dotenv from "dotenv";
 // dotenv.config({ path: '../shared-config/.env' });
