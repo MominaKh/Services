@@ -12,21 +12,25 @@ const socket = io("http://localhost:4000");
 
 
 // 3. User created cache handler
-await sub.subscribe("user:created", async (message) => {
+await sub.subscribe("userCache:events", async (message) => {
   try {
-    const { payload } = JSON.parse(message);
-    await commentCacheModel.findByIdAndUpdate(
-      payload._id,
-      {
-        name: payload.name,
-        username: payload.username,
-        email: payload.email,
-        profileImage: payload.profileImage,
-      },
-      { upsert: true, new: true }
-    );
-    console.log("✅ User cached with _id as userId in comments ");
+    const { event, payload } = JSON.parse(message);
+
+    if (event === "userCache:created" || event === "userCache:updated") {
+      await commentCacheModel.findByIdAndUpdate(
+        payload.id,
+        {
+          name: payload.name,
+          username: payload.username,
+          email: payload.email,
+          profileImage: payload.profileImage,
+        },
+        { upsert: true, new: true }
+      );
+      console.log(`✅ Cache synced for ${event}`);
+    }
   } catch (err) {
-    console.error("❌ Error caching user:", err.message);
+    console.error("❌ Cache update error:", err.message);
   }
 });
+

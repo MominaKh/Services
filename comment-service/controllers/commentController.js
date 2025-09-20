@@ -36,7 +36,7 @@ const attachUserDetails = async (comments) => {
 
 export const addComment = async (req, res) => {
   try {
-    const { postId, parentId, userId, text, receiverName, receiverId, entityId } = req.body;
+    const { postId, parentId, userId, text, receiverId, entityId } = req.body;
 
     if (parentId) {
       await commentModel.findByIdAndUpdate(parentId, { $inc: { replyCount: 1 } });
@@ -59,9 +59,9 @@ export const addComment = async (req, res) => {
 
     const notificationPayload = {
       receiverId,
-      receiverName,
+      // receiverName,
       senderId: responseComment.user?._id,
-      senderName: responseComment.user?.username,
+      // senderName: responseComment.user?.username,
       triggerType: parentId ? "reply" : "comment",
       triggerId: comment._id,
       message: `${responseComment.user?.username} ${parentId ? "replied" : "commented"} on your ${parentId ? "comment" : "post"
@@ -106,28 +106,41 @@ export const getCommentsByPost = async (req, res) => {
 
     const query = { postId, parentId: null };
 
+    const sortOrder = sort === "latest" ? -1 : 1; // latest: newest first, oldest: oldest first
+
     if (cursor) {
       if (sort === "latest") {
-        query._id = { $lt: cursor };
+        query.createdAt = { $lt: new Date(cursor) }; // fetch older than cursor
       } else {
-        query._id = { $gt: cursor };
+        query.createdAt = { $gt: new Date(cursor) }; // fetch newer than cursor
       }
     }
 
-    const sortOrder = sort === "latest" ? -1 : 1;
     const comments = await commentModel
       .find(query)
-      .sort({ _id: sortOrder })
+      .sort({ createdAt: sortOrder })
       .limit(parseInt(limit));
 
     const commentsWithUser = await attachUserDetails(comments);
-    console.log('commentsWithUser', commentsWithUser)
 
-    res.send(commentsWithUser);
+    // Determine next cursor
+    let nextCursor = null;
+    if (commentsWithUser.length > 0) {
+      nextCursor =
+        sort === "latest"
+          ? commentsWithUser[commentsWithUser.length - 1].createdAt
+          : commentsWithUser[0].createdAt;
+    }
+
+    res.send({ comments: commentsWithUser, nextCursor });
   } catch (error) {
-    res.status(500).send({ error: "Something went wrong", details: error.message });
+    res
+      .status(500)
+      .send({ error: "Something went wrong", details: error.message });
   }
 };
+
+
 
 export const getReplies = async (req, res) => {
   try {
@@ -162,6 +175,26 @@ export const likeComment = async (req, res) => {
     }
 
     const updated = await attachUserDetails(newLikeList);
+    console.log('updated', updated)
+
+    // ✅ Notification part
+    if (userId.toString() !== comment.userId.toString() && updated[0].likes.includes(userId)) {
+      const liker = await commentCacheModel.findById(userId);
+
+      const notificationPayload = {
+        receiverId: comment.userId,          // the owner of the comment
+        senderId: liker?._id,                // who liked it
+        triggerType: "like",
+        triggerId: comment._id,
+        entityId: comment.parentId ? comment.parentId : comment._id,
+        entityType: "comment",
+        postId: comment.postId,
+        message: `${liker?.username} liked your comment`
+      };
+
+      await pub.publish("notification:event", JSON.stringify({ notificationPayload }));
+    }
+    
     socket.emit("forward:event", { type: "comment:LikeAndDislike", data: updated[0] });
     res.send(updated[0]);
   } catch (error) {

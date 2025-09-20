@@ -1,148 +1,219 @@
+// ============================
+// 🔹 Profile Controller
+// ============================
+
 import Profile from '../models/profileModel.js';
 import cloudinary from '../helpers/cloudinary.js';
 import streamifier from 'streamifier';
 import { userModel } from '../models/userModel.js';
 import { generateToken } from '../helpers/authHelper.js';
-import { createRedisClients } from "../../shared-config/redisClient.js"
+import { createRedisClients } from "../../shared-config/redisClient.js";
+import { validateName, validateUsername, validateBio, validateSocialLinks } from '../helpers/validators.js';
 
-const { pub } = await createRedisClients()
+const { pub } = await createRedisClients();
 
+// ============================
+// 🔹 Get Profile
+// ============================
 export const getProfile = async (req, res) => {
   try {
     const profile = await Profile.findOne({ user: req.params.userId }).populate('user', 'name email');
-    if (!profile) return res.status(404).json({ message: 'Profile not found' });
+    if (!profile) return res.status(404).json({ success: false, message: 'Profile not found' });
     res.json(profile);
   } catch (err) {
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
+// ============================
+// 🔹 Setup Profile (only name + username)
+// ============================
 export const setupProfile = async (req, res) => {
   try {
     const { userId } = req.params;
     const { name, username } = req.body;
-    console.log('enter in setup profile', name, username)
+    
+    console.log('req.body in set up porfile', req.body)
+    console.log('req.body in set up porfile', req.params)
 
-    if (!name || !username) {
-      return res.json({ message: "Name and username are required" });
-    }
+    // ✅ Backend Validation
+    const nameError = validateName(name);
+    if (nameError) return res.status(400).json({ success: false, message: nameError });
 
-    // Check if profile already exists (avoid duplicate setup)
+    const usernameError = validateUsername(username);
+    if (usernameError) return res.status(400).json({ success: false, message: usernameError });
+
+    // Check if profile already exists
     const existingProfile = await Profile.findOne({ user: userId });
     if (existingProfile) {
-      return res.json({ message: "Profile already exists" });
+      return res.status(400).json({ success: false, message: "Profile already exists" });
     }
 
     // Check username uniqueness
     const existingUsername = await Profile.findOne({ username });
     if (existingUsername) {
-      return res.json({ message: "Username already taken" });
+      return res.status(400).json({ success: false, message: "Username already taken" });
     }
 
-    const profile = new Profile({
-      user: userId,
-      name,
-      username,
-    });
-
-
+    // ✅ Create new profile
+    const profile = new Profile({ user: userId, name, username });
     await profile.save();
 
-
-
-    const user = await userModel.findByIdAndUpdate(userId,
+    // ✅ Update user onboarding step
+    const user = await userModel.findByIdAndUpdate(
+      userId,
       { onboardingStep: 4 },
       { new: true }
     );
-    const token = generateToken(user);
-    const payload = {
-      _id: user._id,
-      name: profile.name,
-      username: profile.username,
-      email: user.email,
-      profileImage: profile.profileImage
-    }
 
-    await pub.publish("user:created", JSON.stringify({
-       payload
-    }))
+    // ✅ Generate token
+    const token = generateToken(user);
+
+    // 🔹 Publish unified event
+    await pub.publish(
+      "userCache:events",
+      JSON.stringify({
+        event: "userCache:created",
+        payload: {
+          id: user._id,
+          name: profile.name,
+          username: profile.username,
+          email: user.email,
+          profileImage: profile.profileImage,
+        },
+      })
+    );
 
     const notificationPayload = {
-      receiverId: user._id,
+      receiverEmail: user.email,
       entityType: "security",
-      message: "You have successfully created account in bytehive."
-    }
-    await pub.publish("notification:event", JSON.stringify({
-       notificationPayload
-    }))
+      message: "You have successfully created account in ByteHive."
+    };
 
-    return res.status(201).json({ message: "Profile created successfully", profile, token });
+    await pub.publish("notification:event", JSON.stringify({ notificationPayload }));
+
+    res.status(201).json({ success: true, message: "Profile created successfully", profile, token });
+
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
-
+// ============================
+// 🔹 Update Profile
+// ============================
 export const updateProfile = async (req, res) => {
   try {
-    const updates = req.body;
+    const updates = { ...req.body };
 
+    // ✅ Validate name if present
+    if (updates.name) {
+      const nameError = validateName(updates.name);
+      if (nameError) return res.status(400).json({ success: false, message: nameError });
+    }
+
+    // ✅ Validate username if present
+    if (updates.username) {
+      const usernameError = validateUsername(updates.username);
+      if (usernameError) return res.status(400).json({ success: false, message: usernameError });
+
+      // Check uniqueness excluding self
+      const existingUsername = await Profile.findOne({
+        username: updates.username,
+        user: { $ne: req.params.userId },
+      });
+      if (existingUsername) {
+        return res.status(400).json({ success: false, message: "Username already taken" });
+      }
+    }
+
+    // ✅ Validate bio if present
+    if (updates.bio) {
+      const bioError = validateBio(updates.bio);
+      if (bioError) return res.status(400).json({ success: false, message: bioError });
+    }
+
+    // ✅ Handle profile image upload
     if (req.file?.buffer) {
-      const streamUpload = () => {
-        return new Promise((resolve, reject) => {
+      const streamUpload = () =>
+        new Promise((resolve, reject) => {
           const stream = cloudinary.uploader.upload_stream(
-            { folder: 'profile_images' },
-            (error, result) => {
-              if (result) resolve(result);
-              else reject(error);
-            }
+            { folder: "profile_images" },
+            (error, result) => (result ? resolve(result) : reject(error))
           );
           streamifier.createReadStream(req.file.buffer).pipe(stream);
         });
-      };
 
       const result = await streamUpload();
       updates.profileImage = result.secure_url;
     }
 
-    // Normalize socialLinks
-    if (
-      'socialLinks[Linkedin]' in updates ||
-      'socialLinks[Github]' in updates ||
-      'socialLinks[X]' in updates ||
-      'socialLinks[Youtube]' in updates ||
-      'socialLinks[Instagram]' in updates ||
-      'socialLinks[Facebook]' in updates ||
-      'socialLinks[Threads]' in updates ||
-      'socialLinks[Websites]' in updates
-    ) {
+    // ✅ Normalize & validate social links only if provided
+    const socialsProvided = Object.keys(updates).some((key) => key.startsWith("socialLinks["));
+    if (socialsProvided) {
       updates.socialLinks = {
-        Linkedin: updates['socialLinks[Linkedin]'] || '',
-        Github: updates['socialLinks[Github]'] || '',
-        X: updates['socialLinks[X]'] || '',
-        Youtube: updates['socialLinks[Youtube]'] || '',
-        Instagram: updates['socialLinks[Instagram]'] || '',
-        Facebook: updates['socialLinks[Facebook]'] || '',
-        Threads: updates['socialLinks[Threads]'] || '',
-        Websites: updates['socialLinks[Websites]'] || ''
+        Linkedin: updates["socialLinks[Linkedin]"] || "",
+        Github: updates["socialLinks[Github]"] || "",
+        X: updates["socialLinks[X]"] || "",
+        Youtube: updates["socialLinks[Youtube]"] || "",
+        Instagram: updates["socialLinks[Instagram]"] || "",
+        Facebook: updates["socialLinks[Facebook]"] || "",
+        Threads: updates["socialLinks[Threads]"] || "",
+        Websites: updates["socialLinks[Websites]"] || "",
       };
 
-      [
-        'Linkedin', 'Github', 'X', 'Youtube',
-        'Instagram', 'Facebook', 'Threads', 'Websites'
-      ].forEach(key => delete updates[`socialLinks[${key}]`]);
+      const socialErrors = validateSocialLinks(updates.socialLinks);
+      if (socialErrors) {
+        return res.status(400).json({ success: false, message: socialErrors });
+      }
+
+      // Remove raw keys like socialLinks[Linkedin] from updates
+      Object.keys(updates).forEach((key) => {
+        if (key.startsWith("socialLinks[")) delete updates[key];
+      });
     }
 
+    // ✅ Update profile (without auto-upsert!)
     const profile = await Profile.findOneAndUpdate(
       { user: req.params.userId },
-      { $set: { ...updates, user: req.params.userId } },
-      { new: true, upsert: true }
+      { $set: updates },
+      { new: true }
     );
 
-    res.json(profile);
+    if (!profile) {
+      return res.status(404).json({ success: false, message: "Profile not found" });
+    }
+
+    res.json({ success: true, message: "Profile updated successfully", profile });
+
+    const relevantFields = ["name", "username", "profileImage"];
+    const changed = relevantFields.some((field) => updates[field]);
+
+    if (changed) {
+      const user = await userModel.findById(req.params.userId).select("email");
+      console.log('user in updatted profile', user)
+
+      // 🔹 Publish unified event
+    await pub.publish(
+      "userCache:events",
+      JSON.stringify({
+        event: "userCache:updated",
+        payload: {
+          id: req.params.userId,
+          name: profile.name,
+          username: profile.username,
+          email: user.email,
+          profileImage: profile.profileImage,
+        },
+      })
+    );
+      console.log("📢 Published userCache:updated for cache sync");
+    }
+
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Update failed' });
+    console.error("Profile update error:", err);
+    res.status(500).json({ success: false, message: "Update failed" });
   }
 };
+

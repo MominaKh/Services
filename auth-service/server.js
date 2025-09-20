@@ -7,8 +7,6 @@ import http from "http";
 // dotenv.config({ path: '../shared-config/.env' });
 import passport from "./config/passport.js";
 import authRoute from "./routes/authRoutes.js";
-import tagRoute from "./routes/tagRoutes.js";
-import userTagRoute from "./routes/userTagRoutes.js";
 import profileRoute from "./routes/profileRoutes.js";
 import connectDB from "./config/db.js";
 // import "./controllers/haha.js"
@@ -26,8 +24,6 @@ app.use(passport.initialize());
 
 // Routes
 app.use("/auth", authRoute);
-app.use("/tags", tagRoute);
-app.use("/user-tags", userTagRoute);
 app.use("/profile", profileRoute);
 
 app.get("/", (req, res) => {
