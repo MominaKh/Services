@@ -3,7 +3,6 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import connectDB from './config/database.js';
 import communityRoutes from './routes/communityRoutes.js';
-import authRoutes from './routes/authRoutes.js';
 
 dotenv.config();
 
@@ -36,6 +35,5 @@ app.use('*', (req, res) => {
   res.status(404).json({ message: 'Route not found' });
 });
 
-app.use('/api/auth', authRoutes);
 
 export default app;

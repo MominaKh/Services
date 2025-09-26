@@ -10,35 +10,32 @@ import {
   updateCommunitySettings,
   addModerator,
   removeModerator,
-  getUserCommunities
+  getUserCommunities,
+  getAllCommunities
 } from '../controllers/communityController.js';
-import { authenticate } from '../middleware/auth.js';
 import { upload } from '../config/cloudinary.js';
-import { validateCommunity, handleValidationErrors } from '../utils/validation.js';
 
 const router = express.Router();
 
-// Public routes
+// All routes are now public - no authentication required
 router.get('/discover', discoverCommunities);
-router.get('/:communityId', getCommunityDetails); // ← MISSING ROUTE ADDED
-
-// Protected routes
-router.use(authenticate);
-router.get('/user/my-communities', getUserCommunities);
+router.get('/all', getAllCommunities);
+router.get('/user/:userId', getUserCommunities);
+router.get('/:communityId', getCommunityDetails);
 
 // Community CRUD
-router.post('/', upload.single('image'), validateCommunity, handleValidationErrors, createCommunity);
-router.put('/:communityId', upload.single('image'), updateCommunity); // Remove validation for updates
+router.post('/', upload.single('image'), createCommunity);
+router.put('/:communityId', upload.single('image'), updateCommunity);
 router.delete('/:communityId', deleteCommunity);
 
 // Follow/Unfollow
 router.post('/:communityId/follow', followCommunity);
 router.delete('/:communityId/unfollow', unfollowCommunity);
 
-// Community Settings (Admin only)
+// Community Settings
 router.patch('/:communityId/settings', updateCommunitySettings);
 
-// Moderator Management (Admin only)
+// Moderator Management
 router.post('/:communityId/moderators', addModerator);
 router.delete('/:communityId/moderators/:userId', removeModerator);
 

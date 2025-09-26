@@ -1,11 +1,10 @@
 import Community from '../models/Community.js';
-import User from '../models/User.js';
 import { cloudinary, uploadToCloudinary } from '../config/cloudinary.js';
 
 // == Create Community 
 export const createCommunity = async (req, res) => {
   try {
-    const { community_name, description, visible, moderation } = req.body;
+    const { community_name, description, visible, moderation, user_id } = req.body;
     let community_tags = req.body['community_tags[]'] || req.body.community_tags || [];
     
     // Ensure community_tags is always an array
@@ -22,11 +21,13 @@ export const createCommunity = async (req, res) => {
     const communityData = {
       community_name,
       description,
-      user_id: req.user._id,
+      user_id, // Using dummy user_id
       community_tags: community_tags,
       visible: visible || 'public',
       moderation: moderation || 'only admin',
     };
+
+    console.log('Creating community with data:', communityData);
 
     // Handle image upload or set default
     if (req.file && req.file.buffer) {
@@ -65,7 +66,7 @@ export const createCommunity = async (req, res) => {
     const community = new Community(communityData);
     await community.save();
 
-    await community.populate('user_id', 'username email');
+    // Remove populate since we're using dummy user_id
     
     res.status(201).json({
       message: 'Community created successfully',
@@ -94,10 +95,7 @@ export const updateCommunity = async (req, res) => {
       return res.status(404).json({ message: 'Community not found' });
     }
 
-    // Check if user is admin
-    if (community.user_id.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Access denied. Admin only.' });
-    }
+    // Remove auth check - anyone can update now
 
     // Check if new name already exists (only if name is being changed)
     if (community_name && community_name !== community.community_name) {
@@ -161,7 +159,7 @@ export const updateCommunity = async (req, res) => {
 
     const updatedCommunity = await Community.findByIdAndUpdate(communityId, updateData, {
       new: true,
-    }).populate('user_id', 'username email');
+    });
 
     res.json({
       message: 'Community updated successfully',
@@ -183,10 +181,7 @@ export const deleteCommunity = async (req, res) => {
       return res.status(404).json({ message: 'Community not found' });
     }
 
-    // Check if user is admin
-    if (community.user_id.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Access denied. Admin only.' });
-    }
+    // Remove auth check - anyone can delete now
 
     // Delete image from Cloudinary if exists and not default
     if (community.image && !community.image.includes('unsplash.com')) {
@@ -231,7 +226,6 @@ export const discoverCommunities = async (req, res) => {
     }
 
     const communities = await Community.find(query)
-      .populate('user_id', 'username')
       .sort({ createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
@@ -254,10 +248,7 @@ export const getCommunityDetails = async (req, res) => {
   try {
     const { communityId } = req.params;
 
-    const community = await Community.findById(communityId)
-      .populate('user_id', 'username email')
-      .populate('members', 'username')
-      .populate('moderators', 'username');
+    const community = await Community.findById(communityId);
 
     if (!community) {
       return res.status(404).json({ message: 'Community not found' });
@@ -276,7 +267,7 @@ export const getCommunityDetails = async (req, res) => {
 export const followCommunity = async (req, res) => {
   try {
     const { communityId } = req.params;
-    const userId = req.user._id;
+    const { userId } = req.body; // Get userId from request body instead of auth
 
     // Handle dummy community IDs that start with 'discover-'
     if (communityId.startsWith('discover-') || communityId.startsWith('owned-')) {
@@ -294,13 +285,16 @@ export const followCommunity = async (req, res) => {
       return res.status(404).json({ message: 'Community not found' });
     }
 
+    // Use userId from request body or default
+    const userIdToUse = userId || 'dummy-user-id-123';
+
     // Check if already following
-    if (community.members.includes(userId)) {
+    if (community.members.includes(userIdToUse)) {
       return res.status(400).json({ message: 'Already following this community' });
     }
 
     await Community.findByIdAndUpdate(communityId, {
-      $push: { members: userId },
+      $push: { members: userIdToUse },
       $inc: { no_of_followers: 1 },
     });
 
@@ -318,7 +312,7 @@ export const followCommunity = async (req, res) => {
 export const unfollowCommunity = async (req, res) => {
   try {
     const { communityId } = req.params;
-    const userId = req.user._id;
+    const { userId } = req.body; // Get userId from request body instead of auth
 
     // Handle dummy community IDs
     if (communityId.startsWith('discover-') || communityId.startsWith('owned-')) {
@@ -336,13 +330,16 @@ export const unfollowCommunity = async (req, res) => {
       return res.status(404).json({ message: 'Community not found' });
     }
 
+    // Use userId from request body or default
+    const userIdToUse = userId || 'dummy-user-id-123';
+
     // Check if not following
-    if (!community.members.includes(userId)) {
+    if (!community.members.includes(userIdToUse)) {
       return res.status(400).json({ message: 'Not following this community' });
     }
 
     await Community.findByIdAndUpdate(communityId, {
-      $pull: { members: userId },
+      $pull: { members: userIdToUse },
       $inc: { no_of_followers: -1 },
     });
 
@@ -367,10 +364,7 @@ export const updateCommunitySettings = async (req, res) => {
       return res.status(404).json({ message: 'Community not found' });
     }
 
-    // Check if user is admin
-    if (community.user_id.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Access denied. Admin only.' });
-    }
+    // Remove auth check - anyone can update settings now
 
     const updateData = {};
     if (visible) updateData.visible = visible;
@@ -393,31 +387,24 @@ export const updateCommunitySettings = async (req, res) => {
 export const addModerator = async (req, res) => {
   try {
     const { communityId } = req.params;
-    const { username } = req.body;
+    const { userId } = req.body; // Get userId from request body instead of username lookup
 
     const community = await Community.findById(communityId);
     if (!community) {
       return res.status(404).json({ message: 'Community not found' });
     }
 
-    // Check if user is admin
-    if (community.user_id.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Access denied. Admin only.' });
-    }
+    // Remove auth check - anyone can add moderators now
 
-    // Find user by username
-    const user = await User.findOne({ username });
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
+    const userIdToAdd = userId || 'dummy-moderator-id-123';
 
     // Check if already a moderator
-    if (community.moderators.includes(user._id)) {
+    if (community.moderators.includes(userIdToAdd)) {
       return res.status(400).json({ message: 'User is already a moderator' });
     }
 
     await Community.findByIdAndUpdate(communityId, {
-      $push: { moderators: user._id },
+      $push: { moderators: userIdToAdd },
     });
 
     res.json({ message: 'Moderator added successfully' });
@@ -436,10 +423,7 @@ export const removeModerator = async (req, res) => {
       return res.status(404).json({ message: 'Community not found' });
     }
 
-    // Check if user is admin
-    if (community.user_id.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Access denied. Admin only.' });
-    }
+    // Remove auth check - anyone can remove moderators now
 
     await Community.findByIdAndUpdate(communityId, {
       $pull: { moderators: userId },
@@ -451,11 +435,42 @@ export const removeModerator = async (req, res) => {
   }
 };
 
+// == Get All Communities (simplified version without user-specific data)
+export const getAllCommunities = async (req, res) => {
+  try {
+    const { search } = req.query;
+    
+    let query = {};
+    
+    // Add search functionality
+    if (search && search.trim()) {
+      const searchRegex = { $regex: search.trim(), $options: 'i' };
+      query.$or = [
+        { community_name: searchRegex },
+        { description: searchRegex }
+      ];
+    }
+    
+    const communities = await Community.find(query)
+      .sort({ createdAt: -1 });
+
+    res.json({
+      communities: communities,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
 // == Get User's Communities
 export const getUserCommunities = async (req, res) => {
   try {
-    const userId = req.user._id;
+    const { userId } = req.params || req.body; // Get userId from params or body
     const { search } = req.query;
+    
+    if (!userId) {
+      return res.status(400).json({ message: 'User ID is required' });
+    }
     
     let query = { user_id: userId };
     let memberQuery = { members: userId };
@@ -480,11 +495,9 @@ export const getUserCommunities = async (req, res) => {
     }
     
     const ownedCommunities = await Community.find(query)
-      .populate('user_id', 'username')
       .sort({ createdAt: -1 });
 
     const followedCommunities = await Community.find(memberQuery)
-      .populate('user_id', 'username')  
       .sort({ createdAt: -1 });
 
     res.json({
