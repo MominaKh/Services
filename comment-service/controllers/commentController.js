@@ -37,12 +37,13 @@ const attachUserDetails = async (comments) => {
 export const addComment = async (req, res) => {
   try {
     const { postId, parentId, userId, text, receiverId, entityId } = req.body;
-
+      console.log('req.body', req.body)
     if (parentId) {
       await commentModel.findByIdAndUpdate(parentId, { $inc: { replyCount: 1 } });
     }
 
     const comment = await commentModel.create(req.body);
+    console.log('comment created', comment)
     let user = await commentCacheModel.findById(userId);
     console.log('user in add comment', user)
 
@@ -101,7 +102,9 @@ export const getCommentsById = async (req, res) => {
 
 export const getCommentsByPost = async (req, res) => {
   try {
+    console.log('backend entered');
     const { postId } = req.params;
+    console.log('postId', postId);
     const { cursor, limit = 5, sort = "latest" } = req.query;
 
     const query = { postId, parentId: null };
