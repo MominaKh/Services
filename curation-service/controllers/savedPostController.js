@@ -1,10 +1,9 @@
-const SavedPost = require('../models/savedPost');
+import SavedPost from '../models/savedPost.js';
 
 // Save or unsave a post
 const savePost = async (req, res) => {
   try {
-    const { postId, category } = req.body;
-    const userId = req.user.userId;
+    const { postId, category, userId } = req.body;
 
     const existingSave = await SavedPost.findOne({ userId, postId });
 
@@ -37,8 +36,7 @@ const savePost = async (req, res) => {
 // Get all saved posts for a user
 const getSavedPosts = async (req, res) => {
   try {
-    const { category } = req.query;
-    const userId = req.user.userId;
+    const { category, userId } = req.query;
 
     const query = { userId };
     if (category) {
@@ -57,8 +55,7 @@ const getSavedPosts = async (req, res) => {
 // Search within saved posts
 const searchSavedPosts = async (req, res) => {
   try {
-    const { searchTerm, category } = req.query;
-    const userId = req.user.userId;
+    const { searchTerm, category, userId } = req.query;
 
     const query = { userId };
     if (category) {
@@ -81,7 +78,7 @@ const searchSavedPosts = async (req, res) => {
 const checkSavedStatus = async (req, res) => {
   try {
     const { postId } = req.params;
-    const userId = req.user.userId;
+    const { userId } = req.query;
 
     const savedPost = await SavedPost.findOne({ userId, postId });
     
@@ -94,7 +91,7 @@ const checkSavedStatus = async (req, res) => {
   }
 };
 
-module.exports = {
+export {
   savePost,
   getSavedPosts,
   searchSavedPosts,

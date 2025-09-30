@@ -1,16 +1,12 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const authMiddleware = require('../middleware/authMiddleware');
-const {
+import {
   recordView,
   getHistory,
   searchHistory,
   deleteHistoryItems,
   clearHistory
-} = require('../controllers/historyController');
-
-// Protect all routes
-router.use(authMiddleware);
+} from '../controllers/historyController.js';
 
 // Record a view
 router.post('/', recordView);
@@ -27,4 +23,4 @@ router.delete('/items', deleteHistoryItems);
 // Clear all history
 router.delete('/clear', clearHistory);
 
-module.exports = router;
+export default router;

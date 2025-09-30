@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const historySchema = new mongoose.Schema({
   userId: {
@@ -34,4 +34,4 @@ historySchema.index(
   }
 );
 
-module.exports = mongoose.model('History', historySchema);
+export default mongoose.model('History', historySchema);

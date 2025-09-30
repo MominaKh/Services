@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const savedPostSchema = new mongoose.Schema({
   userId: {
@@ -36,4 +36,4 @@ savedPostSchema.index({ userId: 1, postId: 1 }, { unique: true });
 // Index for finding watch later items
 savedPostSchema.index({ userId: 1, category: 1, savedAt: -1 });
 
-module.exports = mongoose.model('SavedPost', savedPostSchema);
+export default mongoose.model('SavedPost', savedPostSchema);

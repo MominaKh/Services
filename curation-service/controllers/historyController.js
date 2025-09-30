@@ -1,11 +1,9 @@
-const History = require('../models/history');
-const { ApiError } = require('../utils/errorHandler');
+import History from '../models/history.js';
 
 // Record a post view
 const recordView = async (req, res, next) => {
   try {
-    const { postId } = req.body;
-    const userId = req.user.userId;
+    const { postId, userId } = req.body;
 
     const history = new History({
       userId,
@@ -26,8 +24,7 @@ const recordView = async (req, res, next) => {
 // Get user's view history
 const getHistory = async (req, res) => {
   try {
-    const userId = req.user.userId;
-    const { page = 1, limit = 10 } = req.query;
+    const { userId, page = 1, limit = 10 } = req.query;
 
     const history = await History.find({ userId })
       .sort({ viewedAt: -1 })
@@ -49,8 +46,7 @@ const getHistory = async (req, res) => {
 // Search within history
 const searchHistory = async (req, res) => {
   try {
-    const userId = req.user.userId;
-    const { q } = req.query;
+    const { userId, q } = req.query;
 
     const history = await History.find({
       userId,
@@ -69,8 +65,7 @@ const searchHistory = async (req, res) => {
 // Delete specific history items
 const deleteHistoryItems = async (req, res) => {
   try {
-    const userId = req.user.userId;
-    const { itemIds } = req.body;
+    const { userId, itemIds } = req.body;
 
     await History.deleteMany({
       userId,
@@ -86,7 +81,7 @@ const deleteHistoryItems = async (req, res) => {
 // Clear all history
 const clearHistory = async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const { userId } = req.body;
     await History.deleteMany({ userId });
     res.json({ message: 'History cleared successfully' });
   } catch (error) {
@@ -94,7 +89,7 @@ const clearHistory = async (req, res) => {
   }
 };
 
-module.exports = {
+export {
   recordView,
   getHistory,
   searchHistory,

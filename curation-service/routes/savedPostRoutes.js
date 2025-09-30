@@ -1,15 +1,11 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const authMiddleware = require('../middleware/authMiddleware');
-const {
+import {
   savePost,
   getSavedPosts,
   searchSavedPosts,
   checkSavedStatus
-} = require('../controllers/savedPostController');
-
-// Protect all routes
-router.use(authMiddleware);
+} from '../controllers/savedPostController.js';
 
 // Save or unsave a post
 router.post('/save', savePost);
@@ -23,4 +19,4 @@ router.get('/search', searchSavedPosts);
 // Check if a post is saved
 router.get('/check/:postId', checkSavedStatus);
 
-module.exports = router;
+export default router;

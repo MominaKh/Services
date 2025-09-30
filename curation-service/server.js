@@ -1,11 +1,12 @@
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const connectDB = require('./config/db');
+import dotenv from 'dotenv';
+dotenv.config();
+import express from 'express';
+import cors from 'cors';
+import connectDB from './config/db.js';
 
 // Route imports
-const savedPostRoutes = require('./routes/savedPostRoutes');
-const historyRoutes = require('./routes/historyRoutes');
+import savedPostRoutes from './routes/savedPostRoutes.js';
+import historyRoutes from './routes/historyRoutes.js';
 
 const app = express();
 
@@ -18,7 +19,7 @@ app.use('/api/saved', savedPostRoutes);
 app.use('/api/history', historyRoutes);
 
 // Import error handler
-const { handleError } = require('./utils/errorHandler');
+import { handleError } from './utils/errorHandler.js';
 
 // Error handling middleware
 app.use(handleError);
@@ -74,6 +75,3 @@ const startServer = async () => {
 };
 
 startServer();
-app.listen(PORT, () => {
-  console.log(`Curation service running on port ${PORT}`);
-});

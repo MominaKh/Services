@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
-    "dev": "nodemon index.js"
+    "start": "concurrently \"cd auth-service && npm run server\" \"cd comment-service && npm run server\" \"cd gateway && npm run server\" \"cd notification-service && npm run server\" \"cd posts-service && npm run server\" \"cd community-service && npm run server\" \"cd curation-service && npm run server\" ",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
     "type": "git",
@@ -19,6 +19,7 @@
   },
   "homepage": "https://github.com/rafiya618/ByteHive-Backend#readme",
   "dependencies": {
+    "concurrently": "^9.2.1",
     "cors": "^2.8.5",
     "dotenv": "^17.2.2",
     "express": "^5.1.0",

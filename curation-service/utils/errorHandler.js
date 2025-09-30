@@ -17,7 +17,7 @@ const handleError = (err, req, res, next) => {
   });
 };
 
-module.exports = {
+export {
   ApiError,
   handleError
 };
